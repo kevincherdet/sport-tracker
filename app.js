@@ -1,41 +1,58 @@
+// Supabase config
+const SUPABASE_URL = 'https://rggziitehltqtdmkgctb.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJnZ3ppaXRlaGx0cXRkbWtnY3RiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4NjEyMTYsImV4cCI6MjA4MjQzNzIxNn0.up6vqFQswoLAVpyjWU_PHTuvepOzcv4L9Efg4TCYgwI';
+
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
 // Sport Tracker App
 const App = {
     currentDate: new Date(),
     selectedGainageType: 'normal',
     currentPeriod: 'week',
-    data: {},
+    dayData: { pompes: [], alteres: [], gainage: [] },
 
-    init() {
-        this.loadData();
+    async init() {
         this.bindEvents();
         this.updateDateDisplay();
-        this.renderDay();
+        await this.loadDay();
         this.registerServiceWorker();
     },
 
-    // Data Management
-    loadData() {
-        const saved = localStorage.getItem('sportTracker');
-        this.data = saved ? JSON.parse(saved) : {};
-    },
-
-    saveData() {
-        localStorage.setItem('sportTracker', JSON.stringify(this.data));
-    },
-
+    // Date helpers
     getDateKey(date = this.currentDate) {
         return date.toISOString().split('T')[0];
     },
 
-    getDayData(dateKey = this.getDateKey()) {
-        if (!this.data[dateKey]) {
-            this.data[dateKey] = {
-                pompes: [],
-                alteres: [],
-                gainage: []
-            };
+    // Load data from Supabase
+    async loadDay() {
+        const dateKey = this.getDateKey();
+
+        const { data, error } = await supabase
+            .from('exercises')
+            .select('*')
+            .eq('date', dateKey)
+            .order('created_at', { ascending: true });
+
+        if (error) {
+            console.error('Error loading data:', error);
+            return;
         }
-        return this.data[dateKey];
+
+        // Transform data
+        this.dayData = { pompes: [], alteres: [], gainage: [] };
+
+        data.forEach(row => {
+            const item = {
+                id: row.id,
+                value: row.value
+            };
+            if (row.exercise_type === 'gainage') {
+                item.type = row.gainage_type || 'normal';
+            }
+            this.dayData[row.exercise_type].push(item);
+        });
+
+        this.renderDay();
     },
 
     // Event Bindings
@@ -92,10 +109,10 @@ const App = {
     },
 
     // Date Management
-    changeDate(delta) {
+    async changeDate(delta) {
         this.currentDate.setDate(this.currentDate.getDate() + delta);
         this.updateDateDisplay();
-        this.renderDay();
+        await this.loadDay();
     },
 
     updateDateDisplay() {
@@ -105,19 +122,37 @@ const App = {
     },
 
     // Series Management
-    addSeries(exercise, value) {
-        const dayData = this.getDayData();
-        const series = {
-            value,
-            time: new Date().toISOString()
+    async addSeries(exercise, value) {
+        const dateKey = this.getDateKey();
+
+        const insertData = {
+            date: dateKey,
+            exercise_type: exercise,
+            value: value
         };
 
         if (exercise === 'gainage') {
-            series.type = this.selectedGainageType;
+            insertData.gainage_type = this.selectedGainageType;
         }
 
-        dayData[exercise].push(series);
-        this.saveData();
+        const { data, error } = await supabase
+            .from('exercises')
+            .insert(insertData)
+            .select()
+            .single();
+
+        if (error) {
+            console.error('Error adding series:', error);
+            return;
+        }
+
+        // Add to local data
+        const item = { id: data.id, value: data.value };
+        if (exercise === 'gainage') {
+            item.type = data.gainage_type;
+        }
+        this.dayData[exercise].push(item);
+
         this.renderDay();
 
         // Animate total
@@ -126,30 +161,38 @@ const App = {
         setTimeout(() => totalEl.classList.remove('pop'), 200);
     },
 
-    deleteSeries(exercise, index) {
-        const dayData = this.getDayData();
-        dayData[exercise].splice(index, 1);
-        this.saveData();
+    async deleteSeries(exercise, index) {
+        const item = this.dayData[exercise][index];
+
+        const { error } = await supabase
+            .from('exercises')
+            .delete()
+            .eq('id', item.id);
+
+        if (error) {
+            console.error('Error deleting series:', error);
+            return;
+        }
+
+        this.dayData[exercise].splice(index, 1);
         this.renderDay();
     },
 
     // Rendering
     renderDay() {
-        const dayData = this.getDayData();
-
         // Pompes
-        this.renderSeriesList('pompes', dayData.pompes);
+        this.renderSeriesList('pompes', this.dayData.pompes);
         document.getElementById('pompes-total').textContent =
-            dayData.pompes.reduce((sum, s) => sum + s.value, 0);
+            this.dayData.pompes.reduce((sum, s) => sum + s.value, 0);
 
         // Altères
-        this.renderSeriesList('alteres', dayData.alteres);
+        this.renderSeriesList('alteres', this.dayData.alteres);
         document.getElementById('alteres-total').textContent =
-            dayData.alteres.reduce((sum, s) => sum + s.value, 0);
+            this.dayData.alteres.reduce((sum, s) => sum + s.value, 0);
 
         // Gainage
-        this.renderSeriesList('gainage', dayData.gainage, true);
-        const totalSeconds = dayData.gainage.reduce((sum, s) => sum + s.value, 0);
+        this.renderSeriesList('gainage', this.dayData.gainage, true);
+        const totalSeconds = this.dayData.gainage.reduce((sum, s) => sum + s.value, 0);
         document.getElementById('gainage-total').textContent = this.formatTime(totalSeconds);
     },
 
@@ -184,9 +227,9 @@ const App = {
     },
 
     // Dashboard
-    renderDashboard() {
+    async renderDashboard() {
         const days = this.currentPeriod === 'week' ? 7 : 30;
-        const stats = this.getStats(days);
+        const stats = await this.getStats(days);
 
         document.getElementById('stats-pompes').textContent = stats.totals.pompes;
         document.getElementById('stats-alteres').textContent = stats.totals.alteres;
@@ -198,36 +241,46 @@ const App = {
         this.renderHistory(stats.daily);
     },
 
-    getStats(days) {
-        const stats = {
-            totals: { pompes: 0, alteres: 0, gainage: 0 },
-            daily: []
-        };
+    async getStats(days) {
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - days + 1);
 
+        const { data, error } = await supabase
+            .from('exercises')
+            .select('*')
+            .gte('date', startDate.toISOString().split('T')[0])
+            .lte('date', endDate.toISOString().split('T')[0]);
+
+        if (error) {
+            console.error('Error fetching stats:', error);
+            return { totals: { pompes: 0, alteres: 0, gainage: 0 }, daily: [] };
+        }
+
+        // Build daily stats
+        const dailyMap = {};
         for (let i = days - 1; i >= 0; i--) {
             const date = new Date();
             date.setDate(date.getDate() - i);
-            const dateKey = this.getDateKey(date);
-            const dayData = this.data[dateKey] || { pompes: [], alteres: [], gainage: [] };
-
-            const pompes = dayData.pompes.reduce((sum, s) => sum + s.value, 0);
-            const alteres = dayData.alteres.reduce((sum, s) => sum + s.value, 0);
-            const gainage = dayData.gainage.reduce((sum, s) => sum + s.value, 0);
-
-            stats.totals.pompes += pompes;
-            stats.totals.alteres += alteres;
-            stats.totals.gainage += gainage;
-
-            stats.daily.push({
-                date,
-                dateKey,
-                pompes,
-                alteres,
-                gainage
-            });
+            const dateKey = date.toISOString().split('T')[0];
+            dailyMap[dateKey] = { date, dateKey, pompes: 0, alteres: 0, gainage: 0 };
         }
 
-        return stats;
+        // Aggregate data
+        data.forEach(row => {
+            if (dailyMap[row.date]) {
+                dailyMap[row.date][row.exercise_type] += row.value;
+            }
+        });
+
+        const daily = Object.values(dailyMap);
+        const totals = {
+            pompes: daily.reduce((sum, d) => sum + d.pompes, 0),
+            alteres: daily.reduce((sum, d) => sum + d.alteres, 0),
+            gainage: daily.reduce((sum, d) => sum + d.gainage, 0)
+        };
+
+        return { totals, daily };
     },
 
     renderChart(canvasId, data, exercise, isTime = false) {
