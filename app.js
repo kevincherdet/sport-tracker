@@ -2,7 +2,7 @@
 const SUPABASE_URL = 'https://rggziitehltqtdmkgctb.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJnZ3ppaXRlaGx0cXRkbWtnY3RiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4NjEyMTYsImV4cCI6MjA4MjQzNzIxNn0.up6vqFQswoLAVpyjWU_PHTuvepOzcv4L9Efg4TCYgwI';
 
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const db = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // Sport Tracker App
 const App = {
@@ -27,7 +27,7 @@ const App = {
     async loadDay() {
         const dateKey = this.getDateKey();
 
-        const { data, error } = await supabase
+        const { data, error } = await db
             .from('exercises')
             .select('*')
             .eq('date', dateKey)
@@ -135,7 +135,7 @@ const App = {
             insertData.gainage_type = this.selectedGainageType;
         }
 
-        const { data, error } = await supabase
+        const { data, error } = await db
             .from('exercises')
             .insert(insertData)
             .select()
@@ -164,7 +164,7 @@ const App = {
     async deleteSeries(exercise, index) {
         const item = this.dayData[exercise][index];
 
-        const { error } = await supabase
+        const { error } = await db
             .from('exercises')
             .delete()
             .eq('id', item.id);
@@ -246,7 +246,7 @@ const App = {
         const startDate = new Date();
         startDate.setDate(startDate.getDate() - days + 1);
 
-        const { data, error } = await supabase
+        const { data, error } = await db
             .from('exercises')
             .select('*')
             .gte('date', startDate.toISOString().split('T')[0])
