@@ -2,7 +2,7 @@
     "name": "Sport Tracker",
     "short_name": "Sport",
     "description": "Suivi de pompes, altères et gainage",
-    "start_url": "/",
+    "start_url": "./",
     "display": "standalone",
     "background_color": "#1a202c",
     "theme_color": "#667eea",

@@ -1,10 +1,12 @@
-const CACHE_NAME = 'sport-tracker-v1';
+const CACHE_NAME = 'sport-tracker-v2';
 const urlsToCache = [
-    '/',
-    '/index.html',
-    '/style.css',
-    '/app.js',
-    '/manifest.json'
+    './',
+    './index.html',
+    './style.css',
+    './app.js',
+    './manifest.json',
+    './icon-192.png',
+    './icon-512.png'
 ];
 
 // Install
