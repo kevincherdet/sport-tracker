@@ -234,16 +234,17 @@ const App = {
         const canvas = document.getElementById(canvasId);
         const ctx = canvas.getContext('2d');
 
-        // Set canvas size
-        canvas.width = canvas.offsetWidth * 2;
-        canvas.height = 300;
-        ctx.scale(2, 2);
+        // Set canvas size for retina
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = canvas.offsetWidth * dpr;
+        canvas.height = 150 * dpr;
+        ctx.scale(dpr, dpr);
 
         const width = canvas.offsetWidth;
         const height = 150;
-        const padding = 30;
-        const chartWidth = width - padding * 2;
-        const chartHeight = height - padding * 2;
+        const padding = { top: 20, right: 15, bottom: 25, left: 15 };
+        const chartWidth = width - padding.left - padding.right;
+        const chartHeight = height - padding.top - padding.bottom;
 
         // Clear
         ctx.clearRect(0, 0, width, height);
@@ -252,47 +253,70 @@ const App = {
         const values = data.map(d => d[exercise]);
         const maxValue = Math.max(...values, 1);
 
-        // Draw grid lines
-        ctx.strokeStyle = '#4a5568';
-        ctx.lineWidth = 0.5;
-        for (let i = 0; i <= 4; i++) {
-            const y = padding + (chartHeight / 4) * i;
+        // Draw subtle grid lines
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i <= 3; i++) {
+            const y = padding.top + (chartHeight / 3) * i;
             ctx.beginPath();
-            ctx.moveTo(padding, y);
-            ctx.lineTo(width - padding, y);
+            ctx.moveTo(padding.left, y);
+            ctx.lineTo(width - padding.right, y);
             ctx.stroke();
         }
 
         // Draw bars
-        const barWidth = chartWidth / data.length * 0.7;
-        const gap = chartWidth / data.length * 0.3;
+        const barWidth = Math.min((chartWidth / data.length) * 0.6, 20);
+        const totalBarSpace = chartWidth / data.length;
 
         values.forEach((value, i) => {
-            const x = padding + (chartWidth / data.length) * i + gap / 2;
-            const barHeight = (value / maxValue) * chartHeight;
-            const y = height - padding - barHeight;
+            const x = padding.left + totalBarSpace * i + (totalBarSpace - barWidth) / 2;
+            const barHeight = Math.max((value / maxValue) * chartHeight, value > 0 ? 4 : 0);
+            const y = height - padding.bottom - barHeight;
 
-            // Bar gradient
-            const gradient = ctx.createLinearGradient(x, y, x, height - padding);
-            gradient.addColorStop(0, '#667eea');
-            gradient.addColorStop(1, '#5a67d8');
+            if (value > 0) {
+                // Glow effect
+                ctx.shadowColor = 'rgba(99, 102, 241, 0.5)';
+                ctx.shadowBlur = 10;
 
-            ctx.fillStyle = value > 0 ? gradient : '#4a5568';
-            ctx.beginPath();
-            ctx.roundRect(x, y, barWidth, barHeight, 3);
-            ctx.fill();
+                // Bar gradient
+                const gradient = ctx.createLinearGradient(x, y, x, height - padding.bottom);
+                gradient.addColorStop(0, '#818cf8');
+                gradient.addColorStop(0.5, '#6366f1');
+                gradient.addColorStop(1, '#4f46e5');
+
+                ctx.fillStyle = gradient;
+                ctx.beginPath();
+                ctx.roundRect(x, y, barWidth, barHeight, 4);
+                ctx.fill();
+
+                // Reset shadow
+                ctx.shadowColor = 'transparent';
+                ctx.shadowBlur = 0;
+
+                // Top highlight
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+                ctx.beginPath();
+                ctx.roundRect(x, y, barWidth, 2, 4);
+                ctx.fill();
+            } else {
+                // Empty bar placeholder
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+                ctx.beginPath();
+                ctx.roundRect(x, height - padding.bottom - 4, barWidth, 4, 2);
+                ctx.fill();
+            }
         });
 
-        // Draw labels (show fewer labels for readability)
-        ctx.fillStyle = '#a0aec0';
-        ctx.font = '10px sans-serif';
+        // Draw labels
+        ctx.fillStyle = '#64748b';
+        ctx.font = '10px -apple-system, sans-serif';
         ctx.textAlign = 'center';
 
         const labelInterval = data.length > 14 ? 7 : data.length > 7 ? 2 : 1;
         data.forEach((d, i) => {
             if (i % labelInterval === 0 || i === data.length - 1) {
-                const x = padding + (chartWidth / data.length) * i + barWidth / 2 + gap / 2;
-                const label = d.date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+                const x = padding.left + totalBarSpace * i + totalBarSpace / 2;
+                const label = d.date.toLocaleDateString('fr-FR', { day: 'numeric' });
                 ctx.fillText(label, x, height - 5);
             }
         });
