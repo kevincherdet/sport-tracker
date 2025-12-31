@@ -93,6 +93,23 @@ const App = {
                 this.renderDashboard();
             });
         });
+
+        // Free input for pompes
+        document.getElementById('pompes-free-btn').addEventListener('click', () => {
+            const input = document.getElementById('pompes-free-input');
+            const value = parseInt(input.value);
+            if (value && value > 0) {
+                this.addSeries('pompes', value);
+                input.value = '';
+            }
+        });
+
+        // Allow Enter key to add pompes
+        document.getElementById('pompes-free-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('pompes-free-btn').click();
+            }
+        });
     },
 
     // View Management
