@@ -287,12 +287,13 @@ main {
 .free-input {
     flex: 1;
     min-width: 0;
-    padding: 14px 12px;
+    width: 100%;
+    padding: 12px 10px;
     border: 2px solid var(--glass-border);
-    border-radius: 14px;
+    border-radius: 12px;
     background: var(--glass);
     color: var(--text);
-    font-size: 1rem;
+    font-size: 0.95rem;
     font-weight: 500;
     outline: none;
     transition: all 0.2s ease;
@@ -300,6 +301,7 @@ main {
 
 .free-input::placeholder {
     color: var(--text-muted);
+    font-size: 0.85rem;
 }
 
 .free-input:focus {
@@ -315,8 +317,11 @@ main {
 }
 
 .free-btn {
-    flex: 0 0 auto;
-    padding: 14px 20px;
+    flex: 0 0 auto !important;
+    width: auto !important;
+    padding: 0 12px !important;
+    border-radius: 10px;
+    font-size: 0.85rem;
 }
 
 /* Gainage Type */
