@@ -280,13 +280,14 @@ main {
 /* Free Input */
 .free-input-group {
     display: flex;
-    gap: 10px;
+    gap: 8px;
     margin-top: 12px;
 }
 
 .free-input {
     flex: 1;
-    padding: 14px 16px;
+    min-width: 0;
+    padding: 14px 12px;
     border: 2px solid var(--glass-border);
     border-radius: 14px;
     background: var(--glass);
